@@ -20,7 +20,7 @@ export async function generateQuiz() {
 
   try {
     const prompt = `
-    Generate 10 technical interview questions for a ${
+    Generate 3 technical interview questions for a ${
       user.industry
     }   professionals ${
       user.skills?.length ? ` with expertise in ${user.skills.join(", ")}` : ""
