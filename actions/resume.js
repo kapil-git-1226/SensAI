@@ -56,7 +56,7 @@ export async function getResume() {
   });
 }
 
-export async function improveWithAI({ current, type }) {
+export async function improveWithAI({ current, type, organization, title }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
@@ -69,9 +69,23 @@ export async function improveWithAI({ current, type }) {
 
   if (!user) throw new Error("User not found");
 
-   const prompt = `
-    As an expert resume writer, improve the following ${type} description for a ${user.industry} professional.
+  // Build context-aware prompt with additional details
+  const contextInfo = [];
+  if (title) contextInfo.push(`Position: ${title}`);
+  if (organization) contextInfo.push(`Company: ${organization}`);
+  const contextString =
+    contextInfo.length > 0 ? `\n    Context: ${contextInfo.join(", ")}` : "";
+
+  const prompt = `
+    As an expert resume writer, improve the following ${type} description for a ${
+    user.industry
+  } professional.${contextString}
     Make it more impactful, quantifiable, and aligned with industry standards.
+    ${
+      organization
+        ? `Consider the reputation and industry position of ${organization} when crafting achievements.`
+        : ""
+    }
     Current content: "${current}"
 
     Requirements:
@@ -81,8 +95,13 @@ export async function improveWithAI({ current, type }) {
     4. Keep it concise but detailed
     5. Focus on achievements over responsibilities
     6. Use industry-specific keywords
+    ${
+      organization
+        ? `7. Leverage the company's scale and reputation in the description`
+        : ""
+    }
     
-    Format the response as a single paragraph without any additional text or explanations.
+    Format the response as a single paragraph of 4-5 lines, in about 80-100 words without any additional text or explanations.
   `;
 
   try {
@@ -95,5 +114,3 @@ export async function improveWithAI({ current, type }) {
     throw new Error("Failed to improve content");
   }
 }
-
-
