@@ -26,8 +26,12 @@ import EntryForm from "./entry-form";
 // import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
 
+
+
 const ResumeBuilder = ({ initialContent }) => {
     const [activeTab, setActiveTab] = useState("edit");
+    const [resumeMode, setResumeMode] = useState("preview");
+    
     const { control, register, handleSubmit, watch, formState: { errors }, } = useForm({
         resolver: zodResolver(resumeSchema),
         defaultValues: {
@@ -231,7 +235,12 @@ const ResumeBuilder = ({ initialContent }) => {
                         </div>
                     </form>
                 </TabsContent>
-                <TabsContent value="preview">Change your password here.</TabsContent>
+                <TabsContent value="preview">
+                    <Button variant="link" type="button" className="mb-2">
+                        <Edit className="h-4 w-4"/>
+                        Edit Resume
+                    </Button>
+                </TabsContent>
             </Tabs>
         </div>
     );
