@@ -35,7 +35,7 @@ const ResumeBuilder = ({ initialContent }) => {
             summary: "",
             skills: "",
             experience: [],
-            educatioin: [],
+            education: [],
             projects: [],
         },
     });
@@ -52,7 +52,7 @@ const ResumeBuilder = ({ initialContent }) => {
         if (initialContent) setActiveTab("preview");
     }, [initialContent]);
 
-    const onSubmit = async(data) =>{
+    const onSubmit = async (data) => {
 
     }
 
@@ -139,15 +139,15 @@ const ResumeBuilder = ({ initialContent }) => {
 
                         <div className="space-y-4">
                             <h3 className="text-lg font-medium">Professional Summary</h3>
-                            <Controller 
+                            <Controller
                                 name="summary"
                                 control={control}
-                                render={({ field })=>(
+                                render={({ field }) => (
                                     <Textarea
                                         {...field}
                                         className="h-32"
                                         placeholder="Write a compelling professional summary..."
-                                        error={errors.summary}  
+                                        error={errors.summary}
                                     />
                                 )}
                             />
@@ -182,7 +182,7 @@ const ResumeBuilder = ({ initialContent }) => {
                                 name="experience"
                                 control={control}
                                 render={({ field }) => (
-                                    <EntryForm 
+                                    <EntryForm
                                         type="Experience"
                                         entries={field.value}
                                         onChange={field.onChange}
