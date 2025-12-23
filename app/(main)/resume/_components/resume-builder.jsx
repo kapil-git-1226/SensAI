@@ -67,11 +67,11 @@ const ResumeBuilder = ({ initialContent }) => {
     const getContactMarkdown = () => {
         const { contactInfo } = formValues;
         const parts = [];
-        if (contactInfo.email) parts.push(`📧 ${contactInfo.email}`);
-        if (contactInfo.mobile) parts.push(`📱 ${contactInfo.mobile}`);
+        if (contactInfo.email) parts.push(`[${contactInfo.email}](mailto:${contactInfo.email})`);
+        if (contactInfo.mobile) parts.push(`${contactInfo.mobile}`);
         if (contactInfo.linkedin)
-            parts.push(`💼 [LinkedIn](${contactInfo.linkedin})`);
-        if (contactInfo.twitter) parts.push(`🐦 [Twitter](${contactInfo.twitter})`);
+            parts.push(`[LinkedIn](${contactInfo.linkedin})`);
+        if (contactInfo.twitter) parts.push(`[Twitter](${contactInfo.twitter})`);
 
         return parts.length > 0
             ? `## <div align="center">${user.fullName}</div>
@@ -94,35 +94,62 @@ const ResumeBuilder = ({ initialContent }) => {
             .join("\n\n");
     };
 
-    const onSubmit = async (data) => {
+    useEffect(() => {
+        if (saveResult && !isSaving) {
+            toast.success("Resume saved successfully!");
+        }
+        if (saveError) {
+            toast.error(saveError.message || "Failed to save resume");
+        }
+    }, [saveResult, saveError, isSaving]);
 
+    const onSubmit = async () => {
+        try {
+            await saveResumeFn(previewContent);
+        } catch (error) {
+            console.log("Save Error:", error);
+        }
     }
 
     const generatePDF = async () => {
         setIsGenerating(true);
-        try{
-            const { jsPDF } = await import("jspdf");
-            
+        try {
+            const [{ jsPDF }, html2canvasModule] = await Promise.all([
+                import("jspdf"),
+                import("html2canvas-pro")
+            ]);
+
+            // Override global html2canvas with html2canvas-pro (supports lab colors)
+            window.html2canvas = html2canvasModule.default;
+
             const element = document.getElementById("resume-pdf");
             if (!element) throw new Error("Resume element not found");
-            
+
+            // Temporarily show element
+            const parent = element.parentElement;
+            parent.classList.remove("hidden");
+            parent.style.position = "absolute";
+            parent.style.left = "-9999px";
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const pdf = new jsPDF("portrait", "mm", "a4");
-            
+
             await pdf.html(element, {
                 callback: function (doc) {
+                    parent.classList.add("hidden");
+                    parent.style.position = "";
+                    parent.style.left = "";
                     doc.save("resume.pdf");
                 },
                 x: 15,
                 y: 15,
-                width: 180, // A4 width (210mm) minus margins (15mm each side)
-                windowWidth: 800,
-                html2canvas: {
-                    scale: 0.264 // Convert pixels to mm
-                }
+                width: 180,
+                windowWidth: 800
             });
-            
+
             toast.success("PDF downloaded successfully!");
-        }catch (error) {
+        } catch (error) {
             console.log("PDF Generation Error:", error);
             toast.error("Failed to generate PDF: " + error.message);
         } finally {
@@ -136,9 +163,22 @@ const ResumeBuilder = ({ initialContent }) => {
                 <h1 className="font-bold gradient-title text-5xl md:text-6xl">Resume Builder</h1>
 
                 <div className="space-x-2">
-                    <Button variant="destructive">
-                        <Save className="h-4 w-4" />
-                        Save
+                    <Button
+                        variant="destructive"
+                        onClick={handleSubmit(onSubmit)}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="h-4 w-4" />
+                                Save
+                            </>
+                        )}
                     </Button>
 
                     <Button onClick={generatePDF} disabled={isGenerating}>
@@ -149,7 +189,7 @@ const ResumeBuilder = ({ initialContent }) => {
                             </>
                         ) : (
                             <>
-                                <Download className="h-4 w-4"/>
+                                <Download className="h-4 w-4" />
                                 Download PDF
                             </>
                         )}
@@ -339,12 +379,15 @@ const ResumeBuilder = ({ initialContent }) => {
                         </div>
                     )}
 
-                    <div className="border rounded-lg">
+                    <div className="border rounded-lg" data-color-mode="light">
                         <MDEditor
-                            value={previewContent} 
+                            value={previewContent}
                             onChange={setPreviewContent}
                             height={800}
                             preview={resumeMode}
+                            style={{
+                                backgroundColor: "white"
+                            }}
                         />
                     </div>
                 </TabsContent>
@@ -352,12 +395,12 @@ const ResumeBuilder = ({ initialContent }) => {
 
             <div className="hidden">
                 <div id="resume-pdf">
-                    <MDEditor.Markdown 
+                    <MDEditor.Markdown
                         source={previewContent}
                         style={{
                             background: "white",
                             color: "black",
-                        }}                       
+                        }}
                     />
                 </div>
             </div>
