@@ -27,11 +27,11 @@ import EntryForm from "./entry-form";
 
 
 
-
 const ResumeBuilder = ({ initialContent }) => {
     const [activeTab, setActiveTab] = useState("edit");
     const [resumeMode, setResumeMode] = useState("preview");
-    
+    const [previewContent, setPreviewContent] = useState(initialContent);
+
     const { control, register, handleSubmit, watch, formState: { errors }, } = useForm({
         resolver: zodResolver(resumeSchema),
         defaultValues: {
@@ -236,10 +236,28 @@ const ResumeBuilder = ({ initialContent }) => {
                     </form>
                 </TabsContent>
                 <TabsContent value="preview">
-                    <Button variant="link" type="button" className="mb-2">
-                        <Edit className="h-4 w-4"/>
-                        Edit Resume
+                    <Button variant="link" type="button" className="mb-2" onClick={() => setResumeMode(resumeMode === "preview" ? "edit" : "preview")}>
+                        {resumeMode === "preview" ? (
+                            <>
+                                <Edit className="h-4 w-4" />
+                                Edit Resume
+                            </>
+                        ) : (
+                            <>
+                                <Monitor className="h-4 w-4" />
+                                Show Preview
+                            </>
+                        )}
                     </Button>
+
+                    {resumeMode !== "preview" &&(
+                        <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
+                            <AlertTriangle className="h-5 w-5"/>
+                            <span className="text-sm">
+                                You will lose edited markdown if you update the form data.
+                            </span>
+                        </div>
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
