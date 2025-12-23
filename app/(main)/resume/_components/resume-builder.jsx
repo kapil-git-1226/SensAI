@@ -11,8 +11,7 @@ import {
     Monitor,
     Save,
 } from "lucide-react";
-// import { toast } from "sonner";
-// import MDEditor from "@uiw/react-md-editor";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,10 +19,10 @@ import { Input } from "@/components/ui/input";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { saveResume } from "@/actions/resume";
-// import { entriesToMarkdown } from "@/app/lib/helper";
+import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
 import EntryForm from "./entry-form";
-// import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
+import MDEditor from "@uiw/react-md-editor";
 
 
 
@@ -31,6 +30,8 @@ const ResumeBuilder = ({ initialContent }) => {
     const [activeTab, setActiveTab] = useState("edit");
     const [resumeMode, setResumeMode] = useState("preview");
     const [previewContent, setPreviewContent] = useState(initialContent);
+    const { user } = useUser();
+    const [isGenerating, setIsGenerating] = useState(false);
 
     const { control, register, handleSubmit, watch, formState: { errors }, } = useForm({
         resolver: zodResolver(resumeSchema),
@@ -56,8 +57,98 @@ const ResumeBuilder = ({ initialContent }) => {
         if (initialContent) setActiveTab("preview");
     }, [initialContent]);
 
+    useEffect(() => {
+        if (activeTab === "edit") {
+            const newContent = getCombinedContent();
+            setPreviewContent(newContent ? newContent : initialContent);
+        }
+    }, [formValues, activeTab])
+
+    const getContactMarkdown = () => {
+        const { contactInfo } = formValues;
+        const parts = [];
+        if (contactInfo.email) parts.push(`📧 ${contactInfo.email}`);
+        if (contactInfo.mobile) parts.push(`📱 ${contactInfo.mobile}`);
+        if (contactInfo.linkedin)
+            parts.push(`💼 [LinkedIn](${contactInfo.linkedin})`);
+        if (contactInfo.twitter) parts.push(`🐦 [Twitter](${contactInfo.twitter})`);
+
+        return parts.length > 0
+            ? `## <div align="center">${user.fullName}</div>
+        \n\n<div align="center">\n\n${parts.join(" | ")}\n\n</div>`
+            : "";
+    };
+
+    const getCombinedContent = () => {
+        const { summary, skills, experience, education, projects } = formValues;
+
+        return [
+            getContactMarkdown(),
+            summary && `## Professional Summary\n\n${summary}`,
+            skills && `## Skills\n\n${skills}`,
+            entriesToMarkdown(experience, "Work Experience"),
+            entriesToMarkdown(education, "Education"),
+            entriesToMarkdown(projects, "Projects"),
+        ]
+            .filter(Boolean)
+            .join("\n\n");
+    };
+
     const onSubmit = async (data) => {
 
+    }
+
+    const generatePDF = async () => {
+        setIsGenerating(true);
+        try{
+            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                import("html2canvas-pro"),
+                import("jspdf")
+            ]);
+            
+            const element = document.getElementById("resume-pdf");
+            
+            // Convert element to canvas using html2canvas-pro (supports lab colors)
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false
+            });
+            
+            // Convert canvas to PDF
+            const imgData = canvas.toDataURL("image/jpeg", 0.98);
+            const pdf = new jsPDF("portrait", "mm", "a4");
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const margin = 15;
+            
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            let heightLeft = imgHeight;
+            let position = margin;
+            
+            // Add first page
+            pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+            heightLeft -= (pdfHeight - margin * 2);
+            
+            // Add additional pages if content is longer than one page
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight + margin;
+                pdf.addPage();
+                pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+                heightLeft -= (pdfHeight - margin * 2);
+            }
+            
+            pdf.save("resume.pdf");
+            toast.success("PDF downloaded successfully!");
+        }catch (error) {
+            console.log("PDF Generation Error:", error);
+            toast.error("Failed to generate PDF");
+        } finally {
+            setIsGenerating(false);
+        }
     }
 
     return (
@@ -70,9 +161,19 @@ const ResumeBuilder = ({ initialContent }) => {
                         <Save className="h-4 w-4" />
                         Save
                     </Button>
-                    <Button >
-                        <Download className="h-4 w-4" />
-                        Download PDF
+
+                    <Button onClick={generatePDF} disabled={isGenerating}>
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Generating PDF...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="h-4 w-4"/>
+                                Download PDF
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>
@@ -250,14 +351,35 @@ const ResumeBuilder = ({ initialContent }) => {
                         )}
                     </Button>
 
-                    {resumeMode !== "preview" &&(
+                    {resumeMode !== "preview" && (
                         <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
-                            <AlertTriangle className="h-5 w-5"/>
+                            <AlertTriangle className="h-5 w-5" />
                             <span className="text-sm">
                                 You will lose edited markdown if you update the form data.
                             </span>
                         </div>
                     )}
+
+                    <div className="border rounded-lg">
+                        <MDEditor
+                            value={previewContent} 
+                            onChange={setPreviewContent}
+                            height={800}
+                            preview={resumeMode}
+                        />
+                    </div>
+
+                    <div className="hidden">
+                        <div id="resume-pdf">
+                            <MDEditor.Markdown 
+                                source={previewContent}
+                                style={{
+                                    background: "white",
+                                    color: "black",
+                                }}                       
+                            />
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
