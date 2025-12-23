@@ -101,51 +101,30 @@ const ResumeBuilder = ({ initialContent }) => {
     const generatePDF = async () => {
         setIsGenerating(true);
         try{
-            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-                import("html2canvas-pro"),
-                import("jspdf")
-            ]);
+            const { jsPDF } = await import("jspdf");
             
             const element = document.getElementById("resume-pdf");
+            if (!element) throw new Error("Resume element not found");
             
-            // Convert element to canvas using html2canvas-pro (supports lab colors)
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
-            
-            // Convert canvas to PDF
-            const imgData = canvas.toDataURL("image/jpeg", 0.98);
             const pdf = new jsPDF("portrait", "mm", "a4");
             
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const margin = 15;
+            await pdf.html(element, {
+                callback: function (doc) {
+                    doc.save("resume.pdf");
+                },
+                x: 15,
+                y: 15,
+                width: 180, // A4 width (210mm) minus margins (15mm each side)
+                windowWidth: 800,
+                html2canvas: {
+                    scale: 0.264 // Convert pixels to mm
+                }
+            });
             
-            const imgWidth = pdfWidth - (margin * 2);
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            
-            let heightLeft = imgHeight;
-            let position = margin;
-            
-            // Add first page
-            pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
-            heightLeft -= (pdfHeight - margin * 2);
-            
-            // Add additional pages if content is longer than one page
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight + margin;
-                pdf.addPage();
-                pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
-                heightLeft -= (pdfHeight - margin * 2);
-            }
-            
-            pdf.save("resume.pdf");
             toast.success("PDF downloaded successfully!");
         }catch (error) {
             console.log("PDF Generation Error:", error);
-            toast.error("Failed to generate PDF");
+            toast.error("Failed to generate PDF: " + error.message);
         } finally {
             setIsGenerating(false);
         }
@@ -368,20 +347,20 @@ const ResumeBuilder = ({ initialContent }) => {
                             preview={resumeMode}
                         />
                     </div>
-
-                    <div className="hidden">
-                        <div id="resume-pdf">
-                            <MDEditor.Markdown 
-                                source={previewContent}
-                                style={{
-                                    background: "white",
-                                    color: "black",
-                                }}                       
-                            />
-                        </div>
-                    </div>
                 </TabsContent>
             </Tabs>
+
+            <div className="hidden">
+                <div id="resume-pdf">
+                    <MDEditor.Markdown 
+                        source={previewContent}
+                        style={{
+                            background: "white",
+                            color: "black",
+                        }}                       
+                    />
+                </div>
+            </div>
         </div>
     );
 }
