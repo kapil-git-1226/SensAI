@@ -69,7 +69,7 @@ model CoverLetter{
   jobDescription String?      
   companyName    String      // name of the company applying to
   jobTitle       String     // position applying for
-   
+  status         String      @default("draft") // draft, complete 
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
